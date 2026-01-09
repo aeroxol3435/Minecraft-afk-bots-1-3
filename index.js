@@ -18,12 +18,12 @@ function createBot(username) {
 
   bot.once('spawn', () => {
     console.log(`✅ ${bot.username} spawned`);
-    bot.chat("im back");
+    bot.chat("/login hagla123");
 
     setInterval(() => {
       if (!bot.entity || !bot.entity.position) return;
 
-      bot.chat("i wanna run away");
+      bot.chat("Im a bot to make the server 24/7,so please ignore me by command /ignore name");
 
       bot.setControlState('forward', true);
 
