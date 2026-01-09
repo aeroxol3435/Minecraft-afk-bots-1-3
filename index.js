@@ -1,23 +1,29 @@
 const mineflayer = require("mineflayer");
-const http = require("http");
+const express = require("express");
 
-// ===== EDIT ONLY HERE =====
-const HOST = "aeroxolserver.aternos.me";
-const PORT = 19266;
-const BOT_NAMES = ["pagol", "manoshik", "mata_nosto"];
-const PASSWORD = "hagla123";
-// ==========================
+// ===== ENV CONFIG =====
+const HOST = process.env.MC_HOST;
+const PORT = Number(process.env.MC_PORT);
+const BOT_NAMES = process.env.BOT_NAMES.split(",");
+const PASSWORD = process.env.AUTHME_PASSWORD;
+// ======================
 
-// ---- KEEP RENDER ALIVE ----
+// ---- EXPRESS KEEP-ALIVE ----
+const app = express();
 const WEB_PORT = process.env.PORT || 10000;
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end("Bots running");
-}).listen(WEB_PORT, () => {
-  console.log(`🌐 Keep-alive server on port ${WEB_PORT}`);
+
+app.get("/", (req, res) => {
+  res.send("Minecraft bots are running");
 });
 
-// --------------------------
+app.get("/ping", (req, res) => {
+  res.send("pong");
+});
+
+app.listen(WEB_PORT, () => {
+  console.log(`🌐 Express server running on port ${WEB_PORT}`);
+});
+// --------------------------------
 
 function createBot(name, delay) {
   setTimeout(() => {
@@ -29,17 +35,25 @@ function createBot(name, delay) {
       username: name
     });
 
+    let lastAction = Date.now();
+
     bot.once("spawn", () => {
       console.log(`✅ ${name} spawned`);
 
+      // AuthMe login
       setTimeout(() => {
         bot.chat(`/login ${PASSWORD}`);
       }, 3000);
 
+      // Main activity loop
       setInterval(() => {
+        if (!bot.entity) return;
+
         bot.chat(
           "im a bot to make the server 24/7, so please ignore me by command /ignore name"
         );
+
+        lastAction = Date.now();
 
         bot.setControlState("forward", true);
 
@@ -49,10 +63,18 @@ function createBot(name, delay) {
           jump(bot, 5);
         }, 2000);
       }, 60000);
+
+      // AFK protection (5 min)
+      setInterval(() => {
+        if (Date.now() - lastAction > 5 * 60 * 1000) {
+          jump(bot, 2);
+          lastAction = Date.now();
+        }
+      }, 15000);
     });
 
     bot.on("end", () => {
-      console.log(`❌ ${name} disconnected → retry in 5s`);
+      console.log(`❌ ${name} disconnected → reconnecting in 5s`);
       createBot(name, 5000);
     });
 
@@ -74,5 +96,5 @@ function jump(bot, times) {
 
 // ---- STAGGER BOT JOINS ----
 BOT_NAMES.forEach((name, i) => {
-  createBot(name, 5000 + i * 8000); // join one-by-one
+  createBot(name.trim(), 5000 + i * 8000);
 });
