@@ -1,13 +1,13 @@
 {
-  "name": "minecraft-afk-bots",
+  "name": "mineflayer-3bots",
   "version": "1.0.0",
+  "description": "3 Mineflayer bots with auto reconnect and anti-afk movement",
   "main": "index.js",
-  "license": "MIT",
-  "dependencies": {
-    "mineflayer": "^4.21.0",
-    "express": "^4.18.2"
-  },
   "scripts": {
     "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mineflayer": "^4.20.1"
   }
 }
