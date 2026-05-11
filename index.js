@@ -1,100 +1,161 @@
-const mineflayer = require("mineflayer");
-const express = require("express");
+const mineflayer = require('mineflayer')
+const express = require('express')
 
-// ===== ENV CONFIG =====
-const HOST = process.env.MC_HOST;
-const PORT = Number(process.env.MC_PORT);
-const BOT_NAMES = process.env.BOT_NAMES.split(",");
-const PASSWORD = process.env.AUTHME_PASSWORD;
-// ======================
+/* =========================
+   SERVER SETTINGS
+========================= */
 
-// ---- EXPRESS KEEP-ALIVE ----
-const app = express();
-const WEB_PORT = process.env.PORT || 10000;
+const HOST = 'aeroxolserver.aternos.me'
+const PORT = 19266
+const PASSWORD = 'alif123'
 
-app.get("/", (req, res) => {
-  res.send("Minecraft bots are running");
-});
+/* =========================
+   BOT NAMES
+========================= */
 
-app.get("/ping", (req, res) => {
-  res.send("pong");
-});
+const botNames = [
+  'pagol',
+  'manoshik',
+  'mata_nosto'
+]
 
-app.listen(WEB_PORT, () => {
-  console.log(`🌐 Express server running on port ${WEB_PORT}`);
-});
-// --------------------------------
+/* =========================
+   EXPRESS SERVER
+========================= */
 
-function createBot(name, delay) {
-  setTimeout(() => {
-    console.log(`🔌 Connecting ${name} to ${HOST}:${PORT}`);
+const app = express()
 
-    const bot = mineflayer.createBot({
-      host: HOST,
-      port: PORT,
-      username: name
-    });
+app.get('/', (req, res) => {
+  res.send('Bots are running!')
+})
 
-    let lastAction = Date.now();
+app.listen(3000, () => {
+  console.log('Express server running on port 3000')
+})
 
-    bot.once("spawn", () => {
-      console.log(`✅ ${name} spawned`);
+/* =========================
+   CREATE BOT
+========================= */
 
-      // AuthMe login
-      setTimeout(() => {
-        bot.chat(`/login ${PASSWORD}`);
-      }, 3000);
+function createBot(username) {
 
-      // Main activity loop
-      setInterval(() => {
-        if (!bot.entity) return;
+  const bot = mineflayer.createBot({
+    host: HOST,
+    port: PORT,
+    username: username
+  })
 
-        bot.chat(
-          "im a bot to make the server 24/7, so please ignore me by command /ignore name"
-        );
+  console.log(`[${username}] Creating bot...`)
 
-        lastAction = Date.now();
+  bot.once('spawn', () => {
+    console.log(`[${username}] Spawned!`)
 
-        bot.setControlState("forward", true);
+    // Wait 3 seconds then login
+    setTimeout(() => {
 
-        setTimeout(() => {
-          bot.setControlState("forward", false);
-          bot.look(bot.entity.yaw + Math.PI, 0, true);
-          jump(bot, 5);
-        }, 2000);
-      }, 60000);
+      bot.chat(`/login ${PASSWORD}`)
 
-      // AFK protection (5 min)
-      setInterval(() => {
-        if (Date.now() - lastAction > 5 * 60 * 1000) {
-          jump(bot, 2);
-          lastAction = Date.now();
-        }
-      }, 15000);
-    });
+      console.log(`[${username}] Logged in`)
 
-    bot.on("end", () => {
-      console.log(`❌ ${name} disconnected → reconnecting in 5s`);
-      createBot(name, 5000);
-    });
+      startIgnoreLoop(bot)
+      startMovementLoop(bot)
 
-    bot.on("error", err => {
-      console.log(`⚠️ ${name} error: ${err.message}`);
-    });
-  }, delay);
+    }, 3000)
+  })
+
+  /* =========================
+     AUTO RECONNECT
+  ========================= */
+
+  bot.on('end', () => {
+    console.log(`[${username}] Disconnected. Reconnecting in 5s...`)
+
+    setTimeout(() => {
+      createBot(username)
+    }, 5000)
+  })
+
+  bot.on('kicked', (reason) => {
+    console.log(`[${username}] Kicked:`, reason)
+  })
+
+  bot.on('error', (err) => {
+    console.log(`[${username}] Error:`, err.message)
+  })
 }
 
-function jump(bot, times) {
-  let i = 0;
-  const t = setInterval(() => {
-    bot.setControlState("jump", true);
-    setTimeout(() => bot.setControlState("jump", false), 200);
-    i++;
-    if (i >= times) clearInterval(t);
-  }, 500);
+/* =========================
+   IGNORE LOOP
+========================= */
+
+function startIgnoreLoop(bot) {
+
+  setInterval(() => {
+
+    bot.chat(`I'm a bot pls ignore me by typing /ignore name`)
+
+    console.log(`[${bot.username}] Sent ignore message`)
+
+  }, 60 * 1000)
 }
 
-// ---- STAGGER BOT JOINS ----
-BOT_NAMES.forEach((name, i) => {
-  createBot(name.trim(), 5000 + i * 8000);
-});
+/* =========================
+   MOVEMENT LOOP
+========================= */
+
+function startMovementLoop(bot) {
+
+  setInterval(async () => {
+
+    try {
+
+      console.log(`[${bot.username}] Moving...`)
+
+      // Walk straight
+      bot.setControlState('forward', true)
+
+      await sleep(5000)
+
+      bot.setControlState('forward', false)
+
+      // Turn 90 degrees
+      bot.look(
+        bot.entity.yaw + Math.PI / 2,
+        bot.entity.pitch,
+        true
+      )
+
+      // Jump 3 times
+      for (let i = 0; i < 3; i++) {
+
+        bot.setControlState('jump', true)
+
+        await sleep(500)
+
+        bot.setControlState('jump', false)
+
+        await sleep(500)
+      }
+
+    } catch (err) {
+      console.log(`[${bot.username}] Movement error:`, err.message)
+    }
+
+  }, 60 * 1000)
+}
+
+/* =========================
+   SLEEP FUNCTION
+========================= */
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/* =========================
+   START ALL BOTS
+========================= */
+
+for (const name of botNames) {
+  createBot(name)
+}
